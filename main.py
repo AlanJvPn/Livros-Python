@@ -6,9 +6,11 @@
 # PUT - Atualizar informações dos livros
 # DELETE - Deletar informações dos livros
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from typing import Optional
+import secrets
 
 app = FastAPI(
     title="API de Livros",
@@ -20,6 +22,10 @@ app = FastAPI(
     }
     )
 
+MEU_USUARIO = "admin"
+MINHA_SENHA = "admin"
+
+security = HTTPBasic()
 
 meus_livros = {}
 
@@ -28,17 +34,36 @@ class Livro(BaseModel):
     autor_livro: str
     ano_livro: int
 
+def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, MEU_USUARIO)
+    correct_password = secrets.compare_digest(credentials.password, MINHA_SENHA)
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=401, detail="Credenciais inválidas", headers={"WWW-Authenticate": "Basic"})
+
+
 @app.get("/livros")
-def get_livros():
+def get_livros(page: int = 1, limit: int = 10, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
+    if page < 1 or limit < 1:
+        raise HTTPException(status_code=400, detail="Valores de página e limite devem ser maiores que zero.")
+
     if not meus_livros:
-        return {"message:" "Não existe nenhum livro."}
+        return {"message": "Não existe nenhum livro."}
     else:
-        return {"livros": meus_livros}
+
+        livros_ordenados = sorted(meus_livros.tems(), key=lambda x: x[0])
+        start = (page - 1) * limit
+        end = start + limit
+
+        ##livros_paginados = [{"id": id_livro, **livro} for id_livro, livro in list(meus_livros.items())[start:end]]
+        livros_paginados = [{"id": id_livro, "titulo_livro": livro_data["titulo_livro"], "autor_livro": livro_data["autor_livro"], "ano_livro": livro_data["ano_livro"]} 
+                            for id_livro, livro_data in livros_ordenados[start:end]]
+        
+        return {"page": page, "limit": limit, "total": len(meus_livros), "livros": livros_paginados}
 
 
 # ID, nome, autor, ano
 @app.post("/adiciona")
-def post_livros(id_livro: int, livro: Livro):
+def post_livros(id_livro: int, livro: Livro, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     if id_livro in meus_livros:
         raise HTTPException(status_code=400, detail="Esse Livro já existe")
     else:
@@ -47,7 +72,7 @@ def post_livros(id_livro: int, livro: Livro):
 
 
 @app.put("/atualiza/{id_livro}")
-def put_livros(id_livro: int,livro: Livro):
+def put_livros(id_livro: int,livro: Livro, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     meu_livro = meus_livros.get(id_livro)
     if not meu_livro:
         raise HTTPException(status_code=404, detail="Esse Livro não foi encontrado")
@@ -58,7 +83,7 @@ def put_livros(id_livro: int,livro: Livro):
 
 
 @app.delete("/deletar/{id_livro}")
-def delete_livro(id_livro: int):
+def delete_livro(id_livro: int, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     if id_livro not in meus_livros:
         raise HTTPException(status_code=404, detail="Esse Livro não foi encontrado")
     else:
