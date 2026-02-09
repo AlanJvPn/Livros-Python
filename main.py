@@ -50,7 +50,7 @@ def get_livros(page: int = 1, limit: int = 10, credentials: HTTPBasicCredentials
         return {"message": "Não existe nenhum livro."}
     else:
 
-        livros_ordenados = sorted(meus_livros.tems(), key=lambda x: x[0])
+        livros_ordenados = sorted(meus_livros.items(), key=lambda x: int(x[0]))
         start = (page - 1) * limit
         end = start + limit
 
