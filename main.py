@@ -12,6 +12,17 @@ from pydantic import BaseModel
 from typing import Optional
 import secrets
 
+# SQLAlchemy imports para configuração do banco de dados
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+DATABASE_URL = "sqlite:///./livros.db"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
 app = FastAPI(
     title="API de Livros",
     description="API para gerenciar catálogo de livros",
@@ -34,6 +45,27 @@ class Livro(BaseModel):
     autor_livro: str
     ano_livro: int
 
+# Modelo SQLAlchemy para a tabela de livros
+class LivroDB(Base):
+    __tablename__ = "livros"
+
+    id_livro = Column(Integer, primary_key=True, index=True)
+    titulo_livro = Column(String, index=True)
+    autor_livro = Column(String, index=True)
+    ano_livro = Column(Integer)
+
+# Criar as tabelas no banco de dados
+Base.metadata.create_all(bind=engine)
+
+# Dependência para obter a sessão do banco de dados
+def sessao_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Função para autenticar o usuário usando HTTP Basic Authentication
 def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, MEU_USUARIO)
     correct_password = secrets.compare_digest(credentials.password, MINHA_SENHA)
@@ -41,6 +73,7 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Credenciais inválidas", headers={"WWW-Authenticate": "Basic"})
 
 
+# GET - Buscar os dados dos livros
 @app.get("/livros")
 def get_livros(page: int = 1, limit: int = 10, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     if page < 1 or limit < 1:
@@ -61,7 +94,7 @@ def get_livros(page: int = 1, limit: int = 10, credentials: HTTPBasicCredentials
         return {"page": page, "limit": limit, "total": len(meus_livros), "livros": livros_paginados}
 
 
-# ID, nome, autor, ano
+# POST - Adicionar novos livros
 @app.post("/adiciona")
 def post_livros(id_livro: int, livro: Livro, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     if id_livro in meus_livros:
@@ -70,7 +103,7 @@ def post_livros(id_livro: int, livro: Livro, credentials: HTTPBasicCredentials =
         meus_livros[id_livro] = livro.dict()
         return {"message": "O livro foi adicionado com sucesso!"}
 
-
+# PUT - Atualizar informações dos livros
 @app.put("/atualiza/{id_livro}")
 def put_livros(id_livro: int,livro: Livro, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     meu_livro = meus_livros.get(id_livro)
@@ -81,7 +114,7 @@ def put_livros(id_livro: int,livro: Livro, credentials: HTTPBasicCredentials = D
         
         return {"message": "As informações do Livro foram atualizadas!"}
 
-
+# DELETE - Deletar informações dos livros
 @app.delete("/deletar/{id_livro}")
 def delete_livro(id_livro: int, credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     if id_livro not in meus_livros:
