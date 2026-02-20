@@ -12,12 +12,14 @@ from pydantic import BaseModel
 from typing import Optional
 import secrets
 
+import os
+
 # SQLAlchemy imports para configuração do banco de dados
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "sqlite:///./livros.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -30,8 +32,8 @@ app = FastAPI(
     contact={"name": "Alan Vila Nova", "email": "alanjvpn@gmail.com"},
 )
 
-MEU_USUARIO = "admin"
-MINHA_SENHA = "admin"
+MEU_USUARIO = os.getenv("MEU_USUARIO")
+MINHA_SENHA = os.getenv("MINHA_SENHA")
 
 security = HTTPBasic()
 
@@ -83,7 +85,7 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 @app.get("/livros")
 def get_livros(
     page: int = 1,
-    limit: int = 10,
+    limit: int = 10,    
     db: SessionLocal = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):

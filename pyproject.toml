@@ -6,7 +6,7 @@ authors = [
     {name = "Alan",email = "alanjvpn@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard] (>=0.128.5,<0.129.0)",
     "sqlalchemy (>=2.0.46,<3.0.0)",
