@@ -9,7 +9,7 @@ README
 ## Clonar o repositório
 1. Clone o repositório:
 ```
-git clone <URL-do-repositório>
+git clone https://github.com/AlanJvPn/Livros-Python.git
 ```
 2. Entre na pasta do projeto:
 ```

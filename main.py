@@ -9,15 +9,13 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
-from typing import Optional
 import secrets
 
 import os
 
 # SQLAlchemy imports para configuração do banco de dados
 from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -86,7 +84,7 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 def get_livros(
     page: int = 1,
     limit: int = 10,    
-    db: SessionLocal = Depends(sessao_db),
+    db: Session = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):
     if page < 1 or limit < 1:
@@ -121,7 +119,7 @@ def get_livros(
 @app.post("/adiciona")
 def post_livros(
     livro: Livro,
-    db: SessionLocal = Depends(sessao_db),
+    db: Session = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):
     livro_db = (
@@ -152,7 +150,7 @@ def post_livros(
 def put_livros(
     id_livro: int,
     livro: Livro,
-    db: SessionLocal = Depends(sessao_db),
+    db: Session = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):
     livro_db = db.query(LivroDB).filter(LivroDB.id_livro == id_livro).first()
@@ -175,7 +173,7 @@ def put_livros(
 @app.delete("/deletar/{id_livro}")
 def delete_livro(
     id_livro: int,
-    db: SessionLocal = Depends(sessao_db),
+    db: Session = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):
     livro_db = db.query(LivroDB).filter(LivroDB.id_livro == id_livro).first()
