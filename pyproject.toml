@@ -10,7 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard] (>=0.128.5,<0.129.0)",
     "sqlalchemy (>=2.0.46,<3.0.0)",
-    "aiosqlite (>=0.22.1,<0.23.0)"
+    "aiosqlite (>=0.22.1,<0.23.0)",
+    "reportlab (>=3.6.12,<4.0.0)"
 ]
 
 

@@ -6,10 +6,14 @@
 # PUT - Atualizar informações dos livros
 # DELETE - Deletar informações dos livros
 
+import asyncio
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import secrets
+
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 import os
 
@@ -78,10 +82,42 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
 
+@app.get("/")
+def hello():
+    return {"message": "Bem-vindo à API de Livros!"}
+
+async def chamada_externa1():
+    await asyncio.sleep(1)
+    return {"message": "Chamada externa 1 concluída!"}
+async def chamada_externa2():
+    await asyncio.sleep(1)
+    return {"message": "Chamada externa 2 concluída!"}
+async def chamada_externa3():
+    await asyncio.sleep(1)
+    return {"message": "Chamada externa 3 concluída!"}
+async def chamada_externa4():
+    await asyncio.sleep(1)
+    return {"message": "Chamada externa 4 concluída!"}
+
+@app.get("/chamadas-externas")
+async def chamadas_externas_endpoint():
+    tarefa1 = asyncio.create_task(chamada_externa1())
+    tarefa2 = asyncio.create_task(chamada_externa2())
+    tarefa3 = asyncio.create_task(chamada_externa3())
+    tarefa4 = asyncio.create_task(chamada_externa4())
+    resultado1 = await tarefa1
+    resultado2 = await tarefa2
+    resultado3 = await tarefa3
+    resultado4 = await tarefa4
+    return {
+        "mensagem": "Todas as chamadas externas foram concluídas!",
+        "resultados": [resultado1, resultado2, resultado3, resultado4]
+    }
+
 
 # GET - Buscar os dados dos livros
 @app.get("/livros")
-def get_livros(
+async def get_livros(
     page: int = 1,
     limit: int = 10,    
     db: Session = Depends(sessao_db),
@@ -114,24 +150,10 @@ def get_livros(
             ],
         }
 
-@app.get("/livros/pdf")
-def get_livros_pdf(
-    db: Session = Depends(sessao_db),
-    credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
-):
-    livros_db = db.query(LivroDB).all()
-    if not livros_db:
-        return {"message": "Não existe nenhum livro."}
-    else:
-        return FileResponse(
-            path="livros.pdf",
-            media_type="application/pdf",
-            filename="livros.pdf"
-        )
     
 # POST - Adicionar novos livros
 @app.post("/adiciona")
-def post_livros(
+async def post_livros(
     livro: Livro,
     db: Session = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
@@ -161,7 +183,7 @@ def post_livros(
 
 # PUT - Atualizar informações dos livros
 @app.put("/atualiza/{id_livro}")
-def put_livros(
+async def put_livros(
     id_livro: int,
     livro: Livro,
     db: Session = Depends(sessao_db),
@@ -185,7 +207,7 @@ def put_livros(
 
 # DELETE - Deletar informações dos livros
 @app.delete("/deletar/{id_livro}")
-def delete_livro(
+async def delete_livro(
     id_livro: int,
     db: Session = Depends(sessao_db),
     credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
