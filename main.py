@@ -114,7 +114,21 @@ def get_livros(
             ],
         }
 
-
+@app.get("/livros/pdf")
+def get_livros_pdf(
+    db: Session = Depends(sessao_db),
+    credentials: HTTPBasicCredentials = Depends(autenticar_usuario),
+):
+    livros_db = db.query(LivroDB).all()
+    if not livros_db:
+        return {"message": "Não existe nenhum livro."}
+    else:
+        return FileResponse(
+            path="livros.pdf",
+            media_type="application/pdf",
+            filename="livros.pdf"
+        )
+    
 # POST - Adicionar novos livros
 @app.post("/adiciona")
 def post_livros(
