@@ -11,10 +11,6 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import secrets
-
-from fastapi.responses import FileResponse
-from pathlib import Path
-
 import os
 
 # SQLAlchemy imports para configuração do banco de dados
