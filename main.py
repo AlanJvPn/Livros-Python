@@ -91,17 +91,6 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 def hello():
     return {"message": "Bem-vindo à API de Livros!"}
 
-@app.get("/debug/redis")
-def ver_livros_redis():
-    chaves = redis_client.keys("livro:*")
-    livros_redis = []
-
-    for chave in chaves:
-        valor = redis_client.get(chave)
-        livros_redis.append({"chave": chave, "valor": json.loads(valor)})
-
-        return {"livros_redis": livros_redis}
-
 async def chamada_externa1():
     await asyncio.sleep(1)
     return {"message": "Chamada externa 1 concluída!"}
@@ -130,6 +119,17 @@ async def chamadas_externas_endpoint():
         "resultados": [resultado1, resultado2, resultado3, resultado4]
     }
 
+@app.get("/debug/redis")
+def ver_livros_redis():
+    chaves = redis_client.keys("livro:*")
+    livros_redis = []
+
+    for chave in chaves:
+        valor = redis_client.get(chave)
+        ttl = redis_client.ttl(chave)
+        livros_redis.append({"chave": chave, "valor": json.loads(valor), "ttl": ttl})
+
+        return livros_redis
 
 # GET - Buscar os dados dos livros
 @app.get("/livros")
@@ -145,13 +145,22 @@ async def get_livros(
             detail="Valores de página e limite devem ser maiores que zero.",
         )
 
-    livros_db = db.query(LivroDB).offset((page - 1) * limit).limit(limit).all()
-    total_livros = db.query(LivroDB).count()
+    cache_key = f"livros_page_{page}_limit_{limit}"
+    cache_result = redis_client.get(cache_key)
 
+    if cache_result:
+        return json.loads(cache_result)
+    
+
+    livros_db = db.query(LivroDB).offset((page - 1) * limit).limit(limit).all()
+    
     if not livros_db:
         return {"message": "Não existe nenhum livro."}
-    else:
-        return {
+    
+    total_livros = db.query(LivroDB).count()
+
+    
+    resultado = {
             "page": page,
             "limit": limit,
             "total": total_livros,
@@ -165,6 +174,10 @@ async def get_livros(
                 for livro in livros_db
             ],
         }
+    
+    redis_client.setex(cache_key, 30, json.dumps(resultado))  # Cache por 30 segundos
+    return resultado
+
 
     
 # POST - Adicionar novos livros
