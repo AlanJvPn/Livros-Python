@@ -12,6 +12,8 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import secrets
 import os
+import redis
+import json
 
 # SQLAlchemy imports para configuração do banco de dados
 from sqlalchemy import create_engine, Column, Integer, String
@@ -22,6 +24,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 app = FastAPI(
     title="API de Livros",
@@ -57,6 +61,11 @@ class LivroDB(Base):
 # Criar as tabelas no banco de dados
 Base.metadata.create_all(bind=engine)
 
+def salvar_livros_redis(livvro_id: int, livro: Livro):
+    redis_client.set(f"livro_{livvro_id}", json.dumps(livro.model_dump()))
+
+def deletar_livros_redis(livvro_id: int):
+    redis_client.delete(f"livro_{livvro_id}")
 
 # Dependência para obter a sessão do banco de dados
 def sessao_db():
@@ -81,6 +90,17 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 @app.get("/")
 def hello():
     return {"message": "Bem-vindo à API de Livros!"}
+
+@app.get("/debug/redis")
+def ver_livros_redis():
+    chaves = redis_client.keys("livro:*")
+    livros_redis = []
+
+    for chave in chaves:
+        valor = redis_client.get(chave)
+        livros_redis.append({"chave": chave, "valor": json.loads(valor)})
+
+        return {"livros_redis": livros_redis}
 
 async def chamada_externa1():
     await asyncio.sleep(1)
@@ -173,6 +193,7 @@ async def post_livros(
     db.add(novo_livro)
     db.commit()
     db.refresh(novo_livro)
+    salvar_livros_redis(novo_livro.id_livro, novo_livro)
 
     return {"message": f"O livro {novo_livro.titulo_livro} foi adicionado com sucesso!"}
 
@@ -216,4 +237,5 @@ async def delete_livro(
     else:
         db.delete(livro_db)
         db.commit()
+        deletar_livros_redis(id_livro)
         return {"message": f"O livro {livro_db.titulo_livro} foi deletado com sucesso!"}
