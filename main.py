@@ -25,7 +25,8 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
 
 app = FastAPI(
     title="API de Livros",
@@ -61,11 +62,17 @@ class LivroDB(Base):
 # Criar as tabelas no banco de dados
 Base.metadata.create_all(bind=engine)
 
-def salvar_livros_redis(livvro_id: int, livro: Livro):
-    redis_client.set(f"livro_{livvro_id}", json.dumps(livro.model_dump()))
+def salvar_livros_redis(livro_id: int, livro_db: LivroDB):
+    livro_dict = {
+        "id_livro": livro_id,
+        "titulo_livro": livro_db.titulo_livro,
+        "autor_livro": livro_db.autor_livro,
+        "ano_livro": livro_db.ano_livro
+    }
+    redis_client.set(f"livro:{livro_id}", json.dumps(livro_dict))
 
-def deletar_livros_redis(livvro_id: int):
-    redis_client.delete(f"livro_{livvro_id}")
+def deletar_livros_redis(livro_id: int):
+    redis_client.delete(f"livro:{livro_id}")
 
 # Dependência para obter a sessão do banco de dados
 def sessao_db():
@@ -127,9 +134,11 @@ def ver_livros_redis():
     for chave in chaves:
         valor = redis_client.get(chave)
         ttl = redis_client.ttl(chave)
-        livros_redis.append({"chave": chave, "valor": json.loads(valor), "ttl": ttl})
+        
+        if valor:
+            livros_redis.append({"chave": chave, "valor": json.loads(valor), "ttl": ttl})
 
-        return livros_redis
+    return livros_redis
 
 # GET - Buscar os dados dos livros
 @app.get("/livros")
@@ -231,6 +240,8 @@ async def put_livros(
 
     db.commit()
     db.refresh(livro_db)
+
+    salvar_livros_redis(id_livro, livro_db)
 
     return {"message": f"O livro {livro_db.titulo_livro} foi atualizado com sucesso!"}
 
