@@ -25,7 +25,7 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_HOST = os.getenv("redis", "localhost")
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
 
 app = FastAPI(
@@ -98,33 +98,6 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 def hello():
     return {"message": "Bem-vindo à API de Livros!"}
 
-async def chamada_externa1():
-    await asyncio.sleep(1)
-    return {"message": "Chamada externa 1 concluída!"}
-async def chamada_externa2():
-    await asyncio.sleep(1)
-    return {"message": "Chamada externa 2 concluída!"}
-async def chamada_externa3():
-    await asyncio.sleep(1)
-    return {"message": "Chamada externa 3 concluída!"}
-async def chamada_externa4():
-    await asyncio.sleep(1)
-    return {"message": "Chamada externa 4 concluída!"}
-
-@app.get("/chamadas-externas")
-async def chamadas_externas_endpoint():
-    tarefa1 = asyncio.create_task(chamada_externa1())
-    tarefa2 = asyncio.create_task(chamada_externa2())
-    tarefa3 = asyncio.create_task(chamada_externa3())
-    tarefa4 = asyncio.create_task(chamada_externa4())
-    resultado1 = await tarefa1
-    resultado2 = await tarefa2
-    resultado3 = await tarefa3
-    resultado4 = await tarefa4
-    return {
-        "mensagem": "Todas as chamadas externas foram concluídas!",
-        "resultados": [resultado1, resultado2, resultado3, resultado4]
-    }
 
 @app.get("/debug/redis")
 def ver_livros_redis():
