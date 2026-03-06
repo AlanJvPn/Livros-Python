@@ -6,14 +6,16 @@
 # PUT - Atualizar informações dos livros
 # DELETE - Deletar informações dos livros
 
-import asyncio
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import secrets
 import os
 import redis
 import json
+from tasks import somar, fatorial
+from celery_app import celery_app
+from celery.result import AsyncResult
 
 # SQLAlchemy imports para configuração do banco de dados
 from sqlalchemy import create_engine, Column, Integer, String
@@ -25,8 +27,7 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-REDIS_HOST = os.getenv("redis", "localhost")
-redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+redis_client = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
 
 app = FastAPI(
     title="API de Livros",
@@ -98,6 +99,15 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 def hello():
     return {"message": "Bem-vindo à API de Livros!"}
 
+@app.post("/calcular/soma")
+def calcular_soma(num1: int, num2: int):
+    tarefa = somar.delay(num1, num2)
+    return {"task_id": tarefa.id, "message": "Tarefa de soma iniciada"}
+
+@app.post("/calcular/fatorial")
+def calcular_fatorial(num: int):
+    tarefa = fatorial.delay(num)
+    return {"task_id": tarefa.id, "message": "Tarefa de fatorial iniciada"}
 
 @app.get("/debug/redis")
 def ver_livros_redis():

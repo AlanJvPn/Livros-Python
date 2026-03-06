@@ -1,5 +1,19 @@
-def minha_tarefa1():
-    return {"message": "Tarefa 1"}
+from celery_app import celery_app
+import time
 
-def minha_tarefa2():
-    return {"message": "Tarefa 2"}
+@celery_app.task(bind=True)
+def somar(self, a, b):
+    time.sleep(3)  # Simula uma tarefa demorada
+    return a + b
+
+@celery_app.task(bind=True)
+def fatorial(self, n):
+    time.sleep(3)
+    if n < 0:
+        raise ValueError("Fatorial não é definido para números negativos")
+    
+    resultado = 1
+
+    for i in range(2, n + 1):
+        resultado *= i
+    return resultado
